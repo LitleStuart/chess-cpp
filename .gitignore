@@ -1,3 +1,7 @@
+SFML-2.5.1
+.vscode
+Makefile
+
 # Prerequisites
 *.d
 
