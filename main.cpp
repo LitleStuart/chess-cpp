@@ -1,6 +1,7 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
+#include <SFML/Audio.hpp>
 #include "ChessArbiter.hpp"
 #include "helpers.hpp"
 
@@ -74,6 +75,10 @@ int main()
     sprites[BLACK_KNIGHT + 6] = blackKnight;
     sprites[BLACK_ROOK + 6] = blackRook;
     sprites[BLACK_PAWN + 6] = blackPawn;
+
+    sf::Music soundtrack;
+    soundtrack.openFromFile(path + "music/soundtrack.ogg");
+    soundtrack.play();
 
     ChessArbiter arb = ChessArbiter();
     arb.startGame();
