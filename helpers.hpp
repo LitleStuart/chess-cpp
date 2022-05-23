@@ -68,6 +68,36 @@ bool clickInsideBoard(int x, int y)
     return (x >= 0 && x < 600) && (y >= 0 && y < 600);
 }
 
+bool clickInsideImproveField(int x, int y)
+{
+    return (x >= 1.5 * 75 && x < 6.5 * 75) && (y >= 225 && y < 375);
+}
+
+short getImprovedPiece(int x, int y)
+{
+    std::cout << x - 150 << '\n';
+    switch ((x - 150) / 75)
+    {
+    case 0:
+        return WHITE_QUEEN;
+
+    case 1:
+        return WHITE_ROOK;
+
+    case 2:
+        return WHITE_BISHOP;
+
+    case 3:
+        return WHITE_KNIGHT;
+
+    case 4:
+        return WHITE_KNIGHT;
+
+    default:
+        return 0;
+    }
+}
+
 bool clickInsideNewGame(int x, int y)
 {
     return (x >= 632 && x <= 865) && (y >= 257 && y <= 293);

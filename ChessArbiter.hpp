@@ -3,6 +3,7 @@
 #include "defines.hpp"
 #include <vector>
 #include "ChessBoard.hpp"
+#include <iostream>
 
 class ChessArbiter
 {
@@ -11,6 +12,8 @@ public:
     void startGame()
     {
         isWhiteMove = true;
+        isPossibleWhitePassant = false;
+        isPossibleBlackPassant = false;
 
         board.initBoard();
 
@@ -59,16 +62,91 @@ public:
         return (let >= 0) && (let < 8) && (index >= 0) && (index < 8);
     }
 
+    bool isCastling(char fromLetter, short fromIndex, char letter, short index, bool white)
+    {
+        return fromLetter == 'e' &&
+               fromIndex == (white ? 0 : 7) &&
+               abs(letter - fromLetter) == 2;
+    }
+
+    bool isPossiblePassant(char letter, short index, bool white, bool right)
+    {
+        if (isCorrectCords(letter + (right ? 1 : -1), index + (white ? 1 : -1)))
+        {
+            return (letter + (right ? 1 : -1) ==
+                    (white ? whitePassantLetter : blackPassantLetter)) &&
+                   (white ? isPossibleWhitePassant : isPossibleBlackPassant) &&
+                   index == (white ? 4 : 3);
+        }
+        return false;
+    }
+
+    bool isPassant(char fromLetter, short fromIndex, char letter, short index, bool white)
+    {
+        if (board.getPieceFrom(letter, index) != 0)
+            return false;
+        return (fromIndex == (white ? 4 : 3)) &&
+               (board.getPieceFrom(letter, fromIndex) == (white ? BLACK_PAWN : WHITE_PAWN));
+    }
+
     void moveTo(char letter, short index)
     {
         short pieceFrom = board.getPieceFrom(selectedLetter, selectedIndex);
+        if (abs(pieceFrom) == WHITE_KING)
+        {
+            if (isCastling(selectedLetter, selectedIndex, letter, index, pieceFrom > 0))
+            {
+                castle(pieceFrom, letter, index);
+            }
+        }
+        else if (abs(pieceFrom) == WHITE_PAWN)
+        {
+            if (isPassant(selectedLetter, selectedIndex, letter, index, pieceFrom > 0))
+            {
+                board.removePieceFrom(letter, isWhiteMove ? 4 : 3);
+            }
+            else
+            {
+                if (isWhiteMove)
+                {
+                    if (index - selectedIndex == 2)
+                    {
+                        isPossibleBlackPassant = true;
+                        blackPassantLetter = letter;
+                    }
+                    isPossibleWhitePassant = false;
+                }
+                else
+                {
+                    if (selectedIndex - index == 2)
+                    {
+                        isPossibleWhitePassant = true;
+                        whitePassantLetter = letter;
+                    }
+                    isPossibleBlackPassant = false;
+                }
+            }
+        }
         board.removePieceFrom(selectedLetter, selectedIndex);
         board.removePieceFrom(letter, index);
         board.putPieceTo(letter, index, pieceFrom);
         isWhiteMove = !isWhiteMove;
         numberOfPossibleMoves = 0;
 
+        board.checkState();
+
         removeSelect();
+    }
+
+    void castle(short king, char letter, short index)
+    {
+        bool toRight = letter - selectedLetter > 0;
+        bool white = king > 0;
+
+        board.removePieceFrom(toRight ? 'h' : 'a', white ? 0 : 7);
+        board.putPieceTo(toRight ? letter - 1 : letter + 1,
+                         white ? 0 : 7,
+                         white ? WHITE_ROOK : BLACK_ROOK);
     }
 
     bool selectPiece(char letter, short index)
@@ -117,7 +195,7 @@ public:
             break;
         }
 
-        // result = removeChecks(result);
+        result = removeChecks(result);
 
         return result;
     }
@@ -131,6 +209,20 @@ public:
 
         if (isWhitePiece)
         {
+            if (isPossiblePassant(selectedLetter, selectedIndex, isWhiteMove, true))
+            {
+                temp.at(0) = selectedLetter - 'a' + 1;
+                temp.at(1) = selectedIndex + 1;
+                tempResult.push_back(temp);
+            }
+
+            if (isPossiblePassant(selectedLetter, selectedIndex, isWhiteMove, false))
+            {
+                temp.at(0) = selectedLetter - 'a' - 1;
+                temp.at(1) = selectedIndex + 1;
+                tempResult.push_back(temp);
+            }
+
             if (selectedIndex + 1 < 8)
             {
                 tempPiece = board.getPieceFrom(selectedLetter, selectedIndex + 1);
@@ -171,6 +263,20 @@ public:
         }
         else
         {
+            if (isPossiblePassant(selectedLetter, selectedIndex, isWhiteMove, true))
+            {
+                temp.at(0) = selectedLetter - 'a' + 1;
+                temp.at(1) = selectedIndex - 1;
+                tempResult.push_back(temp);
+            }
+
+            if (isPossiblePassant(selectedLetter, selectedIndex, isWhiteMove, false))
+            {
+                temp.at(0) = selectedLetter - 'a' - 1;
+                temp.at(1) = selectedIndex - 1;
+                tempResult.push_back(temp);
+            }
+
             if (selectedIndex - 1 >= 0)
             {
                 tempPiece = board.getPieceFrom(selectedLetter, selectedIndex - 1);
@@ -570,6 +676,20 @@ public:
             }
         }
 
+        if (board.isPossibleCastling(isWhiteMove, true) && !isCheck() && !willBeCheck('e', isWhiteMove ? 0 : 7, 'f', isWhiteMove ? 0 : 7))
+        {
+            temp.at(0) = 6;
+            temp.at(1) = isWhiteMove ? 0 : 7;
+            tempResult.push_back(temp);
+        }
+
+        if (board.isPossibleCastling(isWhiteMove, false) && !isCheck() && !willBeCheck('e', isWhiteMove ? 0 : 7, 'd', isWhiteMove ? 0 : 7))
+        {
+            temp.at(0) = 2;
+            temp.at(1) = isWhiteMove ? 0 : 7;
+            tempResult.push_back(temp);
+        }
+
         numberOfPossibleMoves = tempResult.size();
         short **result = new short *[numberOfPossibleMoves];
         for (short i = 0; i < numberOfPossibleMoves; i++)
@@ -634,6 +754,7 @@ public:
         bool result = false;
 
         short *kingCords = board.getKingCords(isWhiteMove);
+        short curNumberOfPossibleMoves = numberOfPossibleMoves;
         char curSelectedLetter = selectedLetter;
         short curSelectedIndex = selectedIndex;
         selectPiece(kingCords[0], kingCords[1]);
@@ -647,6 +768,7 @@ public:
                 if (tempPiece == BLACK_ROOK || tempPiece == BLACK_QUEEN)
                 {
                     result = true;
+                    break;
                 }
             }
             else
@@ -654,6 +776,7 @@ public:
                 if (tempPiece == WHITE_ROOK || tempPiece == WHITE_QUEEN)
                 {
                     result = true;
+                    break;
                 }
             }
         }
@@ -667,6 +790,7 @@ public:
                 if (tempPiece == BLACK_BISHOP || tempPiece == BLACK_QUEEN)
                 {
                     result = true;
+                    break;
                 }
             }
             else
@@ -674,6 +798,7 @@ public:
                 if (tempPiece == WHITE_BISHOP || tempPiece == WHITE_QUEEN)
                 {
                     result = true;
+                    break;
                 }
             }
         }
@@ -687,6 +812,7 @@ public:
                 if (tempPiece == BLACK_KNIGHT)
                 {
                     result = true;
+                    break;
                 }
             }
             else
@@ -694,6 +820,7 @@ public:
                 if (tempPiece == WHITE_KNIGHT)
                 {
                     result = true;
+                    break;
                 }
             }
         }
@@ -729,9 +856,43 @@ public:
             }
         }
 
-        selectPiece(curSelectedLetter, curSelectedIndex);
+        selectedLetter = curSelectedLetter;
+        selectedIndex = curSelectedIndex;
+        numberOfPossibleMoves = curNumberOfPossibleMoves;
 
         return result;
+    }
+
+    bool isCheckMate()
+    {
+        short curNumberOfPossibleMoves = numberOfPossibleMoves;
+        char curSelectedLetter = selectedLetter;
+        short curSelectedIndex = selectedIndex;
+
+        for (short index = 0; index < 8; index++)
+        {
+            for (short let = 0; let < 8; let++)
+            {
+                bool pieceColor = board.getPieceFrom(let + 'a', index) > 0;
+                if (isWhiteMove == pieceColor && board.getPieceFrom(let + 'a', index) != 0)
+                {
+                    selectPiece(let + 'a', index);
+                    getPossibleMoves();
+                    if (numberOfPossibleMoves > 0)
+                    {
+                        numberOfPossibleMoves = curNumberOfPossibleMoves;
+                        selectedIndex = curSelectedIndex;
+                        selectedLetter = curSelectedLetter;
+                        return false;
+                    }
+                }
+            }
+        }
+
+        numberOfPossibleMoves = curNumberOfPossibleMoves;
+        selectedIndex = curSelectedIndex;
+        selectedLetter = curSelectedLetter;
+        return true;
     }
 
     void drawPossibleMoves(sf::RenderWindow &window, short **possibleMoves)
@@ -780,6 +941,11 @@ public:
         selectedLetter = 0;
         selectedIndex = -1;
         numberOfPossibleMoves = 0;
+    }
+
+    void improve(char letter, short index, short piece)
+    {
+        board.putPieceTo(letter, index, piece);
     }
 
     short getSelectedPiece()
@@ -831,6 +997,10 @@ public:
 private:
     ChessBoard board;
     bool isWhiteMove;
+    bool isPossibleWhitePassant;
+    bool isPossibleBlackPassant;
+    char whitePassantLetter;
+    char blackPassantLetter;
     char selectedLetter = 0;
     short selectedIndex = -1;
     short numberOfPossibleMoves = 0;

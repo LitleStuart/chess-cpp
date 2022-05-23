@@ -1,3 +1,4 @@
+#include <iostream>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include "ChessArbiter.hpp"
@@ -5,7 +6,7 @@
 
 int main()
 {
-    std::string path = "C:\\Developing\\Studing\\Cpp_Projects\\practice\\chess-cpp\\";
+    std::string path = "/Users/ivan/Desktop/Developing/Cpp/chess-cpp/";
 
     // textures must be alive the whole program life
     sf::Texture whiteKingTex;
@@ -21,18 +22,18 @@ int main()
     sf::Texture blackRookTex;
     sf::Texture blackPawnTex;
 
-    whiteKingTex.loadFromFile(path + "sprites\\whiteKing.png");
-    whiteQueenTex.loadFromFile(path + "sprites\\whiteQueen.png");
-    whiteBishopTex.loadFromFile(path + "sprites\\whiteBishop.png");
-    whiteKnightTex.loadFromFile(path + "sprites\\whiteKnight.png");
-    whiteRookTex.loadFromFile(path + "sprites\\whiteRook.png");
-    whitePawnTex.loadFromFile(path + "sprites\\whitePawn.png");
-    blackKingTex.loadFromFile(path + "sprites\\blackKing.png");
-    blackQueenTex.loadFromFile(path + "sprites\\blackQueen.png");
-    blackBishopTex.loadFromFile(path + "sprites\\blackBishop.png");
-    blackKnightTex.loadFromFile(path + "sprites\\blackKnight.png");
-    blackRookTex.loadFromFile(path + "sprites\\blackRook.png");
-    blackPawnTex.loadFromFile(path + "sprites\\blackPawn.png");
+    whiteKingTex.loadFromFile(path + "sprites/whiteKing.png");
+    whiteQueenTex.loadFromFile(path + "sprites/whiteQueen.png");
+    whiteBishopTex.loadFromFile(path + "sprites/whiteBishop.png");
+    whiteKnightTex.loadFromFile(path + "sprites/whiteKnight.png");
+    whiteRookTex.loadFromFile(path + "sprites/whiteRook.png");
+    whitePawnTex.loadFromFile(path + "sprites/whitePawn.png");
+    blackKingTex.loadFromFile(path + "sprites/blackKing.png");
+    blackQueenTex.loadFromFile(path + "sprites/blackQueen.png");
+    blackBishopTex.loadFromFile(path + "sprites/blackBishop.png");
+    blackKnightTex.loadFromFile(path + "sprites/blackKnight.png");
+    blackRookTex.loadFromFile(path + "sprites/blackRook.png");
+    blackPawnTex.loadFromFile(path + "sprites/blackPawn.png");
 
     sf::Sprite whiteKing;
     sf::Sprite whiteQueen;
@@ -77,34 +78,46 @@ int main()
     ChessArbiter arb = ChessArbiter();
     arb.startGame();
 
-    sf::ContextSettings settings;
-    settings.antialiasingLevel = 8;
-
     sf::RenderWindow window;
-    window.create(sf::VideoMode(900, 600), "Chess", sf::Style::Titlebar | sf::Style::Close, settings);
+    window.create(sf::VideoMode(900, 600), "Chess", sf::Style::Titlebar | sf::Style::Close);
 
     sf::Texture menuTex;
-    menuTex.loadFromFile(path + "sprites\\menu.png");
+    menuTex.loadFromFile(path + "sprites/menu.png");
     sf::Sprite menu;
     menu.setTexture(menuTex);
     menu.setPosition(sf::Vector2f(600, 0));
 
     sf::Font font;
-    font.loadFromFile(path + "fonts\\fifaks.ttf");
+    font.loadFromFile(path + "fonts/fifaks.ttf");
     sf::Text whichTurn;
     whichTurn.setFont(font);
     whichTurn.setCharacterSize(36);
     whichTurn.setFillColor(sf::Color::White);
     whichTurn.setPosition(sf::Vector2f(660, 100));
 
+    sf::RectangleShape improveField(sf::Vector2f(5 * 75.f, 2 * 75.f));
+    improveField.setFillColor(sf::Color::Black);
+    improveField.setPosition(sf::Vector2f(1.5 * 75.f, 3 * 75.f));
+
     short **possibleMoves;
     short *cords;
     short selectedPiece = 0;
     bool isCheckMate = false;
+    bool isOpenImproveField = false;
 
     while (window.isOpen())
     {
-        whichTurn.setString(arb.isBlackMove() ? "Black move" : "White move");
+        std::string improve = isOpenImproveField ? "  Select  \nYour piece" : "";
+        std::string check = arb.isCheck() ? "  Check!  \n" : "";
+        std::string color = arb.isBlackMove() ? "Black move" : "White move";
+
+        if (isOpenImproveField)
+            whichTurn.setString(improve);
+        else if (isCheckMate)
+            whichTurn.setString("Checkmate!");
+        else
+            whichTurn.setString(check + color);
+
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -118,26 +131,41 @@ int main()
             {
                 if (clickInsideBoard(event.mouseButton.x, event.mouseButton.y) && !isCheckMate)
                 {
-                    cords = getCoordinates(event);
-                    if (arb.isPossibleMove(cords[0], cords[1], possibleMoves))
+                    if (isOpenImproveField)
                     {
-                        arb.moveTo(cords[0], cords[1]);
-                    }
-                    else if (arb.selectPiece(cords[0], cords[1]))
-                    {
-                        possibleMoves = arb.getPossibleMoves();
-                        // if (arb.isCheck() && arb.getNumberOfPossibleCurrentKingMoves() == 0)
-                        // {
-                        //     isCheckMate = true;
-                        //     whichTurn.setString(arb.isBlackMove() ? "White win!" : "Black win!");
-                        // }
+                        if (clickInsideImproveField(event.mouseButton.x, event.mouseButton.y))
+                        {
+                            short improvedPiece = arb.isBlackMove()
+                                                      ? getImprovedPiece(event.mouseButton.x, event.mouseButton.y)
+                                                      : -getImprovedPiece(event.mouseButton.x, event.mouseButton.y);
+                            arb.improve(cords[0], cords[1], improvedPiece);
+                            isOpenImproveField = false;
+                        }
                     }
                     else
-                        arb.removeSelect();
+                    {
+                        cords = getCoordinates(event);
+                        if (arb.isPossibleMove(cords[0], cords[1], possibleMoves))
+                        {
+                            arb.moveTo(cords[0], cords[1]);
+                            if (cords[1] == (arb.isBlackMove() ? 7 : 0) && abs(arb.getBoard().getPieceFrom(cords[0], cords[1])) == WHITE_PAWN)
+                            {
+                                isOpenImproveField = true;
+                            }
+                            isCheckMate = arb.isCheckMate();
+                        }
+                        else if (arb.selectPiece(cords[0], cords[1]))
+                        {
+                            possibleMoves = arb.getPossibleMoves();
+                        }
+                        else
+                            arb.removeSelect();
+                    }
                 }
                 else if (clickInsideNewGame(event.mouseButton.x, event.mouseButton.y))
                 {
                     arb.startGame();
+                    isCheckMate = false;
                 }
                 else if (clickInsideExit(event.mouseButton.x, event.mouseButton.y))
                 {
@@ -151,6 +179,18 @@ int main()
         window.draw(menu);
         window.draw(whichTurn);
         printGame(window, arb.getBoard(), sprites);
+        if (isOpenImproveField)
+        {
+            whiteQueen.setPosition(sf::Vector2f(2 * 75.f, 3.5 * 75.f));
+            whiteRook.setPosition(sf::Vector2f(3 * 75.f, 3.5 * 75.f));
+            whiteBishop.setPosition(sf::Vector2f(4 * 75.f, 3.5 * 75.f));
+            whiteKnight.setPosition(sf::Vector2f(5 * 75.f, 3.5 * 75.f));
+            window.draw(improveField);
+            window.draw(whiteQueen);
+            window.draw(whiteRook);
+            window.draw(whiteBishop);
+            window.draw(whiteKnight);
+        }
 
         arb.drawPossibleMoves(window, possibleMoves);
 
