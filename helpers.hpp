@@ -75,7 +75,6 @@ bool clickInsideImproveField(int x, int y)
 
 short getImprovedPiece(int x, int y)
 {
-    std::cout << x - 150 << '\n';
     switch ((x - 150) / 75)
     {
     case 0:

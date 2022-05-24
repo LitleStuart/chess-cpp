@@ -3,7 +3,6 @@
 #include "defines.hpp"
 #include <vector>
 #include "ChessBoard.hpp"
-#include <iostream>
 
 class ChessArbiter
 {
